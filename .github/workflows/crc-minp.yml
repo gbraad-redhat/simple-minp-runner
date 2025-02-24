@@ -1,0 +1,42 @@
+# https://developers.redhat.com/content-gateway/rest/mirror/pub/openshift-v4/clients/crc/latest/crc-linux-amd64.tar.xz
+
+name: minp on github
+run-name: Run minp on GitHub runner
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke-tests:
+    name: minp-on-github
+    runs-on: ubuntu-latest
+    env:
+      SHELL: /bin/bash
+  
+    steps:
+      - name: Remove unwanted stuff
+        uses: gbraad-actions/remove-unwanted@v1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Tailscale
+        uses: spotsnel-actions/tailscale-action@v1
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          args: --ssh --accept-dns=false --operator=runner
+          hostname: minp
+
+      - name: Change DNS settings
+        run: |
+          sudo systemctl disable --now systemd-resolved
+          echo "nameserver 1.1.1.1" | sudo tee    /etc/resolv.conf
+          echo "nameserver 4.4.4.4" | sudo tee -a /etc/resolv.conf
+
+      - name: Deploy minp
+        uses: gbraad-redhat/minp-github-action@v1
+
+      - name: Hang around
+        run: sleep infinity
